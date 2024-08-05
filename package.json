@@ -1,0 +1,36 @@
+{
+  "name": "site-ranker",
+  "version": "1.0.0",
+  "description": "Central hub for web directory services",
+  "main": "index.js",
+  "scripts": {
+    "lint": "./node_modules/.bin/eslint",
+    "check-lint": "lint [0-9]*.js",
+    "start-server": "nodemon --exec babel-node --presets @babel/preset-env ./server.js",
+    "start-worker": "nodemon --exec babel-node --presets @babel/preset-env ./worker.js",
+    "dev": "nodemon --exec babel-node --presets @babel/preset-env",
+    "test": "./node_modules/.bin/mocha --require @babel/register --exit"
+  },
+  "author": "Richard Ezea",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.17.1",
+    "mongodb": "^3.5.9",
+    "redis": "3.1.1",
+    "sha1": "^1.1.1",
+    "uuid": "^8.2.0"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.8.0",
+    "@babel/core": "^7.8.0",
+    "@babel/node": "^7.8.0",
+    "@babel/preset-env": "^7.8.2",
+    "@babel/register": "^7.8.0",
+    "eslint": "^6.4.0",
+    "eslint-config-airbnb-base": "^14.0.0",
+    "eslint-plugin-import": "^2.18.2",
+    "eslint-plugin-jest": "^22.17.0",
+    "nodemon": "^2.0.2"
+  }
+}
