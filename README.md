@@ -1,8 +1,8 @@
 ## Database Design:
-1. Users: Fields: username, email, passwordHash, role (user, admin).
+1. Users: Fields: email, passwordHash, role (user, admin).
 2. Websites: Fields: url, title, description, categories, votes.
 3. Categories: Fields: name, description.
-4. Votes: Fields: userId, websiteId, voteType.
+4. Votes: Fields: userId, websiteId.
 
 ## Core Features
 - User Authentication:
