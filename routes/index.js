@@ -38,13 +38,14 @@ function controllerRouting(app) {
   app.put('/sites/:id/update', ensureAuthenticated, SiteController.updateSiteCategory);
   app.get('/sites', SiteController.searchSites);
   app.get('/sites/all', SiteController.getAllSites);
+  app.get('/category', SiteController.getCategories);
 
   // Admin Controls
   app.delete('/users/destroy', ensureAuthenticated, UserController.deleteUser);
   app.delete('/sites/:id/delete', ensureAuthenticated, SiteController.deleteSite);
   app.post('/category', ensureAuthenticated, SiteController.createCategory);
   app.delete('/category', ensureAuthenticated, SiteController.deleteCategory);
-  app.get('/category', SiteController.getCategories);
+
 
   // Error handling middleware
   app.use(errorHandler);
