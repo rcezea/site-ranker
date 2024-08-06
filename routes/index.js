@@ -1,5 +1,6 @@
 import UserController from '../controllers/UserController'
 import AuthController from "../controllers/AuthController";
+import SiteController from "../controllers/SiteController";
 
 function controllerRouting(app) {
   // User Controller
@@ -10,6 +11,9 @@ function controllerRouting(app) {
   // Auth Controller
   app.get('/connect', AuthController.getConnect);
   app.get('/disconnect', AuthController.getDisconnect);
+
+  // Site Controller
+  app.post('/sites', SiteController.newSite);
 }
 
 export default controllerRouting;
