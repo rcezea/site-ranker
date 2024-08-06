@@ -121,7 +121,7 @@ class SiteController {
       await dbClient.voteCollection.deleteMany({ siteId: site._id });
       await dbClient.siteCollection.deleteOne(site);
 
-      return res.status(200).json({ message: "Site deleted successfully" });
+      return res.status(204).json({ message: "Site deleted successfully" });
     } catch (error) {
       console.error('Error in deleteSite:', error);
       return res.status(500).json({ error: 'Internal Server Error' });

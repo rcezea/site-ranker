@@ -28,8 +28,8 @@ function controllerRouting(app) {
   app.get('/users/me', ensureAuthenticated, UserController.getMe);
 
   // Auth Controller
-  app.get('/connect', AuthController.getConnect);
-  app.get('/disconnect', AuthController.getDisconnect);
+  app.post('/connect', AuthController.getConnect);
+  app.delete('/disconnect', AuthController.getDisconnect);
 
   // Site Controller
   app.post('/sites', ensureAuthenticated, SiteController.newSite);
