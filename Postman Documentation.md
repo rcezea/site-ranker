@@ -1,6 +1,7 @@
 
 
 ### **API Documentation**
+Published Documentation (without example response): https://documenter.getpostman.com/view/36640024/2sA3rxrtdn
 
 ---
 
