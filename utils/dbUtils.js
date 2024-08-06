@@ -39,6 +39,25 @@ export async function validateSiteData (data) {
     };
   }
 
+
+  const categories = await dbClient.categoryCollection.find({}, {
+    projection: {
+      _id: 0,
+      name: 1
+    }
+  }).toArray();
+  const namesList = categories.map(category => category.name);
+  for (const cat of siteCategories) {
+    if (!namesList.includes(cat)) {
+      return {
+        valid: false,
+        message: `${cat} is not a category`,
+      }
+    }
+  }
   return { valid: true };
 }
 
+export async function getSiteById(siteId) {
+  return await dbClient.siteCollection.findOne({ _id: ObjectId(siteId) });
+}

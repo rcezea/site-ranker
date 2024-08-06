@@ -13,6 +13,7 @@ class DBClient {
         this.db = client.db(database);
         this.userCollection = this.db.collection('users');
         this.siteCollection = this.db.collection('sites');
+        this.voteCollection = this.db.collection('votes');
         this.categoryCollection = this.db.collection('categories');
       })
       .catch((err) => {
@@ -37,6 +38,13 @@ class DBClient {
       return 0;
     }
     return this.siteCollection.countDocuments({});
+  }
+
+  async nbVotes() {
+    if (!this.isAlive()) {
+      return 0;
+    }
+    return this.voteCollection.countDocuments({});
   }
 
   async nbCategories() {
