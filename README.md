@@ -1,3 +1,6 @@
+## [API Documentation Here](https://github.com/rcezea/site-ranker/blob/main/Postman%20Documentation.md)
+## [Postman Published Documentation (without example response)](https://documenter.getpostman.com/view/36640024/2sA3rxrtdn)
+
 ## Database Design:
 1. Users: Fields: email, password, role (user, admin).
 2. Websites: Fields: url, title, description, categories, votes.
