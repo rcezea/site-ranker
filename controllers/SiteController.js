@@ -1,207 +1,239 @@
 import dbClient from '../utils/db';
 import authenticateUser from "../utils/authUtils";
 import handleUnauthorized from "../utils/errorUtils";
-import {getSiteById, getUserById, insertDocument, validateSiteData} from "../utils/dbUtils";
-import {ObjectId} from 'mongodb';
+import { getSiteById, getUserById, insertDocument, validateSiteData } from "../utils/dbUtils";
+import { ObjectId } from 'mongodb';
 
 class SiteController {
   static async newSite(req, res) {
-    const userId = await authenticateUser(req);
-    if (!userId) return handleUnauthorized(res);
-    const user = await getUserById(userId);
-    if (!user) return handleUnauthorized(res);
+    try {
+      const userId = await authenticateUser(req);
+      if (!userId) return handleUnauthorized(res);
 
-    req.body.siteCategories = req.body.siteCategories.map(siteCategories =>
-      siteCategories.toLowerCase().replaceAll(' ', '_'));
+      const user = await getUserById(userId);
+      if (!user) return handleUnauthorized(res);
 
-    const validation = await validateSiteData(req.body);
+      req.body.siteCategories = req.body.siteCategories.map(siteCategories =>
+        siteCategories.toLowerCase().replaceAll(' ', '_'));
 
-    if (!validation.valid) {
-      return res.status(400).json({error: validation.message});
+      const validation = await validateSiteData(req.body);
+      if (!validation.valid) {
+        return res.status(400).json({ error: validation.message });
+      }
+
+      const site = {
+        userId: ObjectId(userId),
+        url: req.body.siteUrl,
+        title: req.body.siteName,
+        desc: req.body.siteDesc || '',
+        categories: req.body.siteCategories,
+        votes: 0,
+      };
+
+      const newSite = await insertDocument('siteCollection', site);
+      return res.status(201).json({
+        id: newSite.insertedId.toString(),
+        userId,
+        url: site.url,
+        title: site.title,
+        desc: site.desc,
+        categories: site.categories,
+        votes: 0,
+      });
+    } catch (error) {
+      console.error('Error in newSite:', error);
+      return res.status(500).json({ error: 'Internal Server Error' });
     }
-
-    const site = {
-      userId: ObjectId(userId),
-      url: req.body.siteUrl,
-      title: req.body.siteName,
-      desc: req.body.siteDesc || '',
-      categories: req.body.siteCategories,
-      votes: 0,
-    };
-
-    const newSite = await insertDocument('siteCollection', site);
-    return res.status(201).json({
-      id: newSite.insertedId.toString(),
-      userId,
-      url: site.url,
-      title: site.title,
-      desc: site.desc,
-      categories: site.categories,
-      votes: 0,
-    });
   }
 
-  static async voteSite(req, res){
-    const userId = await authenticateUser(req);
-    if (!userId) return handleUnauthorized(res);
-    const user = await getUserById(userId);
-    if (!user) return handleUnauthorized(res);
+  static async voteSite(req, res) {
+    try {
+      const userId = await authenticateUser(req);
+      if (!userId) return handleUnauthorized(res);
 
-    const site = await getSiteById(req.params.id);
-    if (!site) return res.status(400).json({error: "Invalid site"});
+      const user = await getUserById(userId);
+      if (!user) return handleUnauthorized(res);
 
-    const checkVote =  await dbClient.voteCollection.findOne({ userId: ObjectId(userId), siteId: site._id });
-    if (checkVote) return res.status(400).json({error: "You are allowed only one vote per site"});
+      const site = await getSiteById(req.params.id);
+      if (!site) return res.status(400).json({ error: "Invalid site" });
 
+      const checkVote = await dbClient.voteCollection.findOne({ userId: ObjectId(userId), siteId: site._id });
+      if (checkVote) return res.status(400).json({ error: "You are allowed only one vote per site" });
 
-    const updateDoc = {
-      $inc: {
-        votes: 1,
-      },
-    };
-    await dbClient.siteCollection.updateOne(site, updateDoc);
+      await dbClient.siteCollection.updateOne(site, { $inc: { votes: 1 } });
 
-    const vote = {
-      userId: ObjectId(userId),
-      siteId: site._id,
-    };
-    await dbClient.voteCollection.insertOne(vote);
+      const vote = {
+        userId: ObjectId(userId),
+        siteId: site._id,
+      };
+      await dbClient.voteCollection.insertOne(vote);
 
-    return res.status(200).json({
-      url: site.url,
-      title: site.title,
-      votes: site.votes + 1,
-    })
-  }
-
-  static async unvoteSite(req, res){
-    const userId = await authenticateUser(req);
-    if (!userId) return handleUnauthorized(res);
-    const user = await getUserById(userId);
-    if (!user) return handleUnauthorized(res);
-
-    const site = await getSiteById(req.params.id);
-    const checkVote =  await dbClient.voteCollection.findOne({ userId: ObjectId(userId), siteId: site._id });
-    if (!checkVote) return res.status(400).json({error: "You need to vote first"});
-
-    const updateDoc = {
-      $inc: {
-        votes: -1,
-      },
-    };
-    await dbClient.siteCollection.updateOne(site, updateDoc);
-    await dbClient.voteCollection.deleteOne(checkVote);
-
-    return res.status(200).json({
-      url: site.url,
-      title: site.title,
-      votes: site.votes - 1,
-    })
-  }
-
-  static async deleteSite(req, res){
-    const userId = await authenticateUser(req);
-    if (!userId) return handleUnauthorized(res);
-    const user = await getUserById(userId);
-    if (!user || user.role !== 'admin') return handleUnauthorized(res);
-
-    const site = await getSiteById(req.params.id);
-    if (!site) return res.status(400).json({error: "Invalid site"});
-    await dbClient.voteCollection.deleteMany({ siteId: site._id });
-    await dbClient.siteCollection.deleteOne(site);
-
-    return res.status(200).json({message: "Site deleted successfully"})
-  }
-
-  static async createCategory(req, res){
-    const userId = await authenticateUser(req);
-    if (!userId) return handleUnauthorized(res);
-    const user = await getUserById(userId);
-    if (!user || user.role !== 'admin') return handleUnauthorized(res);
-
-    const category = {
-      name: req.body ? (req.body.name).toLowerCase() : null,
-      desc: req.body ? req.body.desc : null,
-    };
-
-    if (!category.name || !category.desc) return res.status(400).json({ error: "missing field" });
-    if (await dbClient.categoryCollection.findOne({ name: category.name })) {
-      return res.status(400).json({ error: "Category already exists" });
+      return res.status(200).json({
+        url: site.url,
+        title: site.title,
+        votes: site.votes + 1,
+      });
+    } catch (error) {
+      console.error('Error in voteSite:', error);
+      return res.status(500).json({ error: 'Internal Server Error' });
     }
+  }
 
-    await dbClient.categoryCollection.insertOne(category);
+  static async unvoteSite(req, res) {
+    try {
+      const userId = await authenticateUser(req);
+      if (!userId) return handleUnauthorized(res);
 
-    return res.status(200).json({message: "Category created"});
+      const user = await getUserById(userId);
+      if (!user) return handleUnauthorized(res);
+
+      const site = await getSiteById(req.params.id);
+      if (!site) return res.status(400).json({ error: "Invalid site" });
+
+      const checkVote = await dbClient.voteCollection.findOne({ userId: ObjectId(userId), siteId: site._id });
+      if (!checkVote) return res.status(400).json({ error: "You need to vote first" });
+
+      await dbClient.siteCollection.updateOne(site, { $inc: { votes: -1 } });
+      await dbClient.voteCollection.deleteOne(checkVote);
+
+      return res.status(200).json({
+        url: site.url,
+        title: site.title,
+        votes: site.votes - 1,
+      });
+    } catch (error) {
+      console.error('Error in unvoteSite:', error);
+      return res.status(500).json({ error: 'Internal Server Error' });
+    }
+  }
+
+  static async deleteSite(req, res) {
+    try {
+      const userId = await authenticateUser(req);
+      if (!userId) return handleUnauthorized(res);
+
+      const user = await getUserById(userId);
+      if (!user || user.role !== 'admin') return handleUnauthorized(res);
+
+      const site = await getSiteById(req.params.id);
+      if (!site) return res.status(400).json({ error: "Invalid site" });
+
+      await dbClient.voteCollection.deleteMany({ siteId: site._id });
+      await dbClient.siteCollection.deleteOne(site);
+
+      return res.status(200).json({ message: "Site deleted successfully" });
+    } catch (error) {
+      console.error('Error in deleteSite:', error);
+      return res.status(500).json({ error: 'Internal Server Error' });
+    }
+  }
+
+  static async createCategory(req, res) {
+    try {
+      const userId = await authenticateUser(req);
+      if (!userId) return handleUnauthorized(res);
+
+      const user = await getUserById(userId);
+      if (!user || user.role !== 'admin') return handleUnauthorized(res);
+
+      const category = {
+        name: req.body ? (req.body.name).toLowerCase() : null,
+        desc: req.body ? req.body.desc : null,
+      };
+
+      if (!category.name || !category.desc) return res.status(400).json({ error: "Missing field" });
+      if (await dbClient.categoryCollection.findOne({ name: category.name })) {
+        return res.status(400).json({ error: "Category already exists" });
+      }
+
+      await dbClient.categoryCollection.insertOne(category);
+
+      return res.status(200).json({ message: "Category created" });
+    } catch (error) {
+      console.error('Error in createCategory:', error);
+      return res.status(500).json({ error: 'Internal Server Error' });
+    }
   }
 
   static async updateSiteCategory(req, res) {
-    const userId = await authenticateUser(req);
-    if (!userId) return handleUnauthorized(res);
-    const user = await getUserById(userId);
-    if (!user) return handleUnauthorized(res);
+    try {
+      const userId = await authenticateUser(req);
+      if (!userId) return handleUnauthorized(res);
 
-    const site = await getSiteById(req.params.id);
-    if (!site) return res.status(400).json({error: "Invalid site"});
-    if (site.userId !== userId && user.role !== 'admin') return handleUnauthorized(res);
+      const user = await getUserById(userId);
+      if (!user) return handleUnauthorized(res);
 
-    const category = (req.body.category).toLowerCase().replaceAll(' ', '_');
-    if (site.categories.includes(category)) return res.status(400).json({error: "Category already included"});
+      const site = await getSiteById(req.params.id);
+      if (!site) return res.status(400).json({ error: "Invalid site" });
+      if (site.userId !== userId && user.role !== 'admin') return handleUnauthorized(res);
 
-    const categories = await dbClient.categoryCollection.find({}, {
-      projection: {
-        _id: 0,
-        name: 1
-      }
-    }).toArray();
+      const category = (req.body.category).toLowerCase().replaceAll(' ', '_');
+      if (site.categories.includes(category)) return res.status(400).json({ error: "Category already included" });
 
-    const namesList = categories.map(category => category.name);
-    if (!namesList.includes(category)) return res.status(400).json({error: `${category} is not a category`});
+      const categories = await dbClient.categoryCollection.find({}, {
+        projection: { _id: 0, name: 1 }
+      }).toArray();
 
-    const updateDoc = {
-      $push: {
-        categories: category,
-      },
-    };
-    await dbClient.siteCollection.updateOne(site, updateDoc);
+      const namesList = categories.map(category => category.name);
+      if (!namesList.includes(category)) return res.status(400).json({ error: `${category} is not a category` });
 
-    return res.status(200).json({message: "Site updated"})
+      await dbClient.siteCollection.updateOne(site, { $push: { categories: category } });
+
+      return res.status(200).json({ message: "Site updated" });
+    } catch (error) {
+      console.error('Error in updateSiteCategory:', error);
+      return res.status(500).json({ error: 'Internal Server Error' });
+    }
   }
 
-  static async deleteCategory(req, res){
-    const userId = await authenticateUser(req);
-    if (!userId) return handleUnauthorized(res);
-    const user = await getUserById(userId);
-    if (!user || user.role !== 'admin') return handleUnauthorized(res);
+  static async deleteCategory(req, res) {
+    try {
+      const userId = await authenticateUser(req);
+      if (!userId) return handleUnauthorized(res);
 
-    const category = await dbClient.categoryCollection.findOne({ name: (req.body.name).toLowerCase() });
-    if (!category) return res.status(400).json({ error: "Category does not exist" });
+      const user = await getUserById(userId);
+      if (!user || user.role !== 'admin') return handleUnauthorized(res);
 
-    await dbClient.categoryCollection.deleteOne(category);
-    return res.status(200).json({message: "Category deleted"});
+      const category = await dbClient.categoryCollection.findOne({ name: (req.body.name).toLowerCase() });
+      if (!category) return res.status(400).json({ error: "Category does not exist" });
+
+      await dbClient.categoryCollection.deleteOne(category);
+      return res.status(200).json({ message: "Category deleted" });
+    } catch (error) {
+      console.error('Error in deleteCategory:', error);
+      return res.status(500).json({ error: 'Internal Server Error' });
+    }
   }
 
-  static async getCategories(req, res){
-    const category = await dbClient.categoryCollection.find({}, {
-      projection: {
-        _id: 0,
-        name: 1
-      }
-    }).toArray();
-    const categories = category.map(category => category.name);
-    return res.status(200).json({categories});
+  static async getCategories(req, res) {
+    try {
+      const category = await dbClient.categoryCollection.find({}, {
+        projection: { _id: 0, name: 1 }
+      }).toArray();
+      const categories = category.map(category => category.name);
+      return res.status(200).json({ categories });
+    } catch (error) {
+      console.error('Error in getCategories:', error);
+      return res.status(500).json({ error: 'Internal Server Error' });
+    }
   }
 
-  static async getAllSites(req, res){
-    const sites = await dbClient.siteCollection.find({}, {
-      projection : {
-        title: '$title',
-        url: '$url',
-        desc: '$desc',
-        categories: '$categories',
-        votes: '$votes'
-      }
-    }).toArray();
-    return res.status(200).json({sites});
+  static async getAllSites(req, res) {
+    try {
+      const sites = await dbClient.siteCollection.find({}, {
+        projection: {
+          title: '$title',
+          url: '$url',
+          desc: '$desc',
+          categories: '$categories',
+          votes: '$votes'
+        }
+      }).toArray();
+      return res.status(200).json({ sites });
+    } catch (error) {
+      console.error('Error in getAllSites:', error);
+      return res.status(500).json({ error: 'Internal Server Error' });
+    }
   }
 
   static async searchSites(req, res) {
